@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - Portal COGESPA</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+    <style>
+        @import url('https://fonts.googleapis.com/css?family=Montserrat:300,500,700');
+
+        :root {
+            --primary: #00a3c5; --primary-dark: #22748b;
+            --dark: #282828; --gray: #787878; --light-gray: #f9f9f9;
+            --border: #ddd; --danger: #e74c3c; --success: #27ae60; --warning: #f39c12;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: "Montserrat", Arial, sans-serif;
+            background-color: #f4f6f8; color: var(--dark);
+            margin: 0; padding: 0;
+        }
+
+        /* ===== LOGIN ===== */
+        .login-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            display: flex; align-items: center; justify-content: center; z-index: 9999;
+        }
+
+        .login-box {
+            background: #fff; padding: 40px; border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 100%; max-width: 420px; text-align: center;
+        }
+
+        .login-box h2 { color: var(--primary); margin-bottom: 5px; }
+        .login-box p { color: var(--gray); margin-bottom: 25px; font-size: 14px; }
+
+        .login-box .form-group { text-align: left; margin-bottom: 15px; }
+        .login-box .form-group label { font-size: 12px; color: var(--gray); font-weight: 600; }
+
+        .login-box input {
+            width: 100%; padding: 12px 16px; border: 2px solid var(--border);
+            border-radius: 6px; font-size: 15px;
+            font-family: "Montserrat", sans-serif;
+        }
+
+        .login-box input:focus { outline: none; border-color: var(--primary); }
+
+        .login-box button {
+            width: 100%; padding: 12px; background: var(--primary); color: #fff;
+            border: none; border-radius: 6px; font-size: 15px; font-weight: 700;
+            cursor: pointer; font-family: "Montserrat", sans-serif; margin-top: 10px;
+        }
+
+        .login-box button:hover { background: var(--primary-dark); }
+
+        .login-error { color: var(--danger); font-size: 13px; margin-top: 10px; display: none; }
+
+        /* ===== ADMIN LAYOUT ===== */
+        .admin-container { display: none; }
+
+        .admin-header {
+            background: #fff; border-bottom: 3px solid var(--primary);
+            padding: 15px 0; position: sticky; top: 0; z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .admin-header-inner {
+            display: flex; justify-content: space-between;
+            align-items: center; flex-wrap: wrap; gap: 10px;
+        }
+
+        .admin-header h3 { color: var(--primary); margin: 0; font-size: 20px; }
+        .admin-header h3 i { margin-right: 8px; }
+
+        .user-info { font-size: 12px; color: var(--gray); margin-left: 15px; }
+        .user-info strong { color: var(--dark); }
+
+        .admin-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        .btn-admin {
+            padding: 8px 16px; border: none; border-radius: 5px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            font-family: "Montserrat", sans-serif;
+            display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
+            text-decoration: none !important;
+        }
+
+        .btn-admin:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+
+        .btn-save { background: var(--success); color: #fff; }
+        .btn-save:disabled { background: #95a5a6; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-export { background: var(--primary); color: #fff; }
+        .btn-import { background: var(--warning); color: #fff; }
+        .btn-back { background: #6c757d; color: #fff !important; }
+        .btn-logout { background: var(--danger); color: #fff; }
+        .btn-add { background: var(--primary); color: #fff; }
+        .btn-add-sm { background: var(--success); color: #fff; font-size: 12px; padding: 5px 12px; }
+        .btn-remove { background: var(--danger); color: #fff; font-size: 12px; padding: 5px 10px; }
+        .btn-audit { background: #8e44ad; color: #fff; }
+        .btn-versions { background: #2c3e50; color: #fff; }
+
+        .admin-body { padding: 30px 0 60px; }
+
+        /* ===== TABS ===== */
+        .admin-tabs {
+            display: flex; gap: 0; margin-bottom: 25px; border-bottom: 2px solid var(--border);
+        }
+
+        .admin-tab {
+            padding: 10px 20px; font-size: 14px; font-weight: 600;
+            cursor: pointer; border-bottom: 3px solid transparent;
+            color: var(--gray); transition: all 0.2s;
+            font-family: "Montserrat", sans-serif; background: none; border: none;
+            border-bottom: 3px solid transparent;
+        }
+
+        .admin-tab:hover { color: var(--primary); }
+        .admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ===== TOPIC CARD ===== */
+        .topic-card {
+            background: #fff; border: 1px solid var(--border);
+            border-radius: 8px; margin-bottom: 20px; overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+
+        .topic-card-header {
+            background: var(--light-gray); padding: 15px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px;
+        }
+
+        .topic-card-header .topic-info {
+            display: flex; align-items: center; gap: 15px; flex-wrap: wrap; flex: 1;
+        }
+
+        .topic-card-header label {
+            font-size: 12px; color: var(--gray); margin-bottom: 2px;
+            display: block; font-weight: 600;
+        }
+
+        .topic-card-header input {
+            padding: 6px 10px; border: 1px solid var(--border);
+            border-radius: 4px; font-size: 14px; font-family: "Montserrat", sans-serif;
+        }
+
+        .topic-card-header input:focus { outline: none; border-color: var(--primary); }
+        .topic-card-body { padding: 20px; }
+
+        /* ===== CATEGORY ===== */
+        .category-block {
+            margin-bottom: 20px; border: 1px solid #e8e8e8;
+            border-radius: 6px; overflow: hidden;
+        }
+
+        .category-block-header {
+            background: var(--primary); color: #fff;
+            padding: 10px 15px; display: flex;
+            align-items: center; justify-content: space-between; gap: 10px;
+        }
+
+        .category-block-header input {
+            background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4);
+            color: #fff; padding: 5px 10px; border-radius: 4px;
+            font-size: 14px; font-weight: 600; flex: 1; max-width: 300px;
+            font-family: "Montserrat", sans-serif;
+        }
+
+        .category-block-header input::placeholder { color: rgba(255,255,255,0.6); }
+        .category-block-header input:focus { outline: none; border-color: #fff; }
+        .category-block-body { padding: 15px; }
+
+        /* ===== QA ITEM ===== */
+        .qa-item {
+            background: var(--light-gray); border: 1px solid #e8e8e8;
+            border-radius: 6px; padding: 15px; margin-bottom: 12px; position: relative;
+        }
+
+        .qa-item:last-child { margin-bottom: 0; }
+
+        .qa-item label {
+            font-size: 12px; color: var(--gray); font-weight: 700;
+            margin-bottom: 4px; display: block;
+        }
+
+        .qa-item input, .qa-item textarea {
+            width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+            border-radius: 4px; font-size: 14px; font-family: "Montserrat", sans-serif;
+        }
+
+        .qa-item input { margin-bottom: 10px; }
+        .qa-item textarea { min-height: 80px; resize: vertical; line-height: 1.6; }
+        .qa-item input:focus, .qa-item textarea:focus { outline: none; border-color: var(--primary); }
+        .qa-item-actions { position: absolute; top: 10px; right: 10px; }
+
+        /* ===== ICON SELECTOR ===== */
+        .icon-options { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        .icon-option {
+            width: 36px; height: 36px; display: flex;
+            align-items: center; justify-content: center;
+            border: 2px solid var(--border); border-radius: 4px;
+            cursor: pointer; font-size: 16px; color: var(--gray); transition: all 0.2s;
+        }
+
+        .icon-option:hover { border-color: var(--primary); color: var(--primary); }
+        .icon-option.selected { border-color: var(--primary); background: var(--primary); color: #fff; }
+
+        /* ===== AUDIT TABLE ===== */
+        .audit-table { width: 100%; border-collapse: collapse; }
+        .audit-table th { background: var(--light-gray); padding: 10px 12px; text-align: left; font-size: 12px; color: var(--gray); border-bottom: 2px solid var(--border); }
+        .audit-table td { padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+        .audit-table tr:hover { background: #f8f8f8; }
+
+        .action-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 11px; font-weight: 700; color: #fff;
+        }
+
+        .action-badge.login { background: var(--primary); }
+        .action-badge.save { background: var(--success); }
+        .action-badge.restore { background: var(--warning); }
+        .action-badge.login_failed { background: var(--danger); }
+        .action-badge.seed { background: #8e44ad; }
+        .action-badge.create_user { background: #2c3e50; }
+        .action-badge.update_user { background: #2980b9; }
+
+        /* ===== VERSION CARD ===== */
+        .version-card {
+            background: #fff; border: 1px solid var(--border); border-radius: 6px;
+            padding: 15px 20px; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 10px;
+        }
+
+        .version-card.current { border-left: 4px solid var(--success); }
+        .version-info { font-size: 13px; }
+        .version-info strong { color: var(--primary); }
+        .version-info .version-meta { font-size: 11px; color: var(--gray); margin-top: 3px; }
+
+        /* ===== TOAST ===== */
+        .toast-msg {
+            position: fixed; bottom: 30px; right: 30px;
+            padding: 15px 25px; border-radius: 8px; color: #fff;
+            font-weight: 600; font-size: 14px; z-index: 10000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: none; max-width: 450px;
+        }
+
+        .toast-ok { background: var(--success); }
+        .toast-err { background: var(--danger); }
+
+        /* ===== SAVING OVERLAY ===== */
+        .saving-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4); display: none;
+            align-items: center; justify-content: center; z-index: 10001;
+        }
+
+        .saving-overlay.active { display: flex; }
+
+        .saving-box {
+            background: #fff; padding: 40px; border-radius: 8px;
+            text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .saving-box i { color: var(--primary); margin-bottom: 15px; }
+        .saving-box p { color: var(--gray); margin: 0; font-size: 16px; }
+
+        .hidden-input { display: none; }
+
+        @media (max-width: 768px) {
+            .topic-card-header .topic-info { flex-direction: column; align-items: flex-start; }
+            .admin-header-inner { flex-direction: column; align-items: flex-start; }
+            .admin-actions { width: 100%; }
+            .admin-tabs { overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== LOGIN ===== -->
+    <div class="login-overlay" id="loginScreen">
+        <div class="login-box">
+            <i class="fa fa-shield fa-3x" style="color: var(--primary); margin-bottom: 15px;"></i>
+            <h2>Area Administrativa</h2>
+            <p>Portal de Instrucoes COGESPA</p>
+            <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" id="usernameInput" placeholder="Digite seu usuario" onkeydown="if(event.key==='Enter') document.getElementById('passwordInput').focus()">
+            </div>
+            <div class="form-group">
+                <label>Senha</label>
+                <input type="password" id="passwordInput" placeholder="Digite sua senha" onkeydown="if(event.key==='Enter') doLogin()">
+            </div>
+            <button onclick="doLogin()"><i class="fa fa-sign-in"></i> Entrar</button>
+            <p class="login-error" id="loginError"><i class="fa fa-times-circle"></i> <span id="loginErrorMsg">Usuario ou senha incorretos.</span></p>
+        </div>
+    </div>
+
+    <!-- ===== ADMIN PANEL ===== -->
+    <div class="admin-container" id="adminPanel">
+        <div class="admin-header">
+            <div class="container">
+                <div class="admin-header-inner">
+                    <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
+                        <h3><i class="fa fa-cogs"></i> Painel Admin</h3>
+                        <span class="user-info" id="userInfo"></span>
+                    </div>
+                    <div class="admin-actions">
+                        <a href="index.html" class="btn-admin btn-back"><i class="fa fa-arrow-left"></i> Ver Portal</a>
+                        <button class="btn-admin btn-import" onclick="$('#importInput').click()"><i class="fa fa-upload"></i> Importar</button>
+                        <button class="btn-admin btn-export" onclick="exportJSON()"><i class="fa fa-download"></i> Exportar</button>
+                        <button class="btn-admin btn-save" id="btnSave" onclick="saveToServer()"><i class="fa fa-floppy-o"></i> Publicar</button>
+                        <button class="btn-admin btn-logout" onclick="doLogout()"><i class="fa fa-sign-out"></i> Sair</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-body">
+            <div class="container">
+
+                <!-- TABS -->
+                <div class="admin-tabs">
+                    <button class="admin-tab active" onclick="switchTab('editor', this)"><i class="fa fa-pencil"></i> Editor</button>
+                    <button class="admin-tab" onclick="switchTab('versions', this)"><i class="fa fa-history"></i> Versoes</button>
+                    <button class="admin-tab" onclick="switchTab('audit', this)"><i class="fa fa-list-alt"></i> Auditoria</button>
+                </div>
+
+                <!-- TAB: EDITOR -->
+                <div class="tab-content active" id="tab-editor">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                        <h4 style="margin: 0;"><i class="fa fa-list"></i> Topicos do Portal</h4>
+                        <button class="btn-admin btn-add" onclick="addTopic()"><i class="fa fa-plus"></i> Novo Topico</button>
+                    </div>
+                    <div id="topicList"></div>
+                </div>
+
+                <!-- TAB: VERSOES -->
+                <div class="tab-content" id="tab-versions">
+                    <h4 style="margin-bottom: 20px;"><i class="fa fa-history"></i> Historico de Versoes</h4>
+                    <p style="color: var(--gray); margin-bottom: 20px;">Cada vez que voce publica alteracoes, uma nova versao e criada. Voce pode restaurar qualquer versao anterior.</p>
+                    <div id="versionsList">
+                        <p style="color: var(--gray);"><i class="fa fa-spinner fa-spin"></i> Carregando...</p>
+                    </div>
+                </div>
+
+                <!-- TAB: AUDITORIA -->
+                <div class="tab-content" id="tab-audit">
+                    <h4 style="margin-bottom: 20px;"><i class="fa fa-list-alt"></i> Log de Auditoria</h4>
+                    <p style="color: var(--gray); margin-bottom: 20px;">Registro de todas as acoes realizadas no painel administrativo.</p>
+                    <div style="overflow-x: auto;">
+                        <table class="audit-table" id="auditTable">
+                            <thead>
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Acao</th>
+                                    <th>Usuario</th>
+                                    <th>Detalhes</th>
+                                    <th>IP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditBody">
+                                <tr><td colspan="5" style="text-align:center; color:var(--gray);"><i class="fa fa-spinner fa-spin"></i> Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- SAVING OVERLAY -->
+    <div class="saving-overlay" id="savingOverlay">
+        <div class="saving-box">
+            <i class="fa fa-spinner fa-spin fa-3x"></i>
+            <p style="margin-top: 15px;" id="savingMsg">Publicando alteracoes...</p>
+        </div>
+    </div>
+
+    <input type="file" id="importInput" class="hidden-input" accept=".json" onchange="importJSON(event)">
+    <div class="toast-msg toast-ok" id="toastOk"></div>
+    <div class="toast-msg toast-err" id="toastErr"></div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+    // ================================================================
+    // CONFIGURACAO - URL DA API NA SUA VPS
+    // Altere para o dominio/IP real da sua VPS
+    // Exemplos:
+    // const API_BASE = 'https://api.seudominio.com.br';
+    // const API_BASE = 'http://200.100.50.25';
+    // ================================================================
+    const API_BASE = 'http://SEU-IP-VPS-AQUI';
+    // ================================================================
+
+    let authToken = null;
+    let currentUser = null;
+    let adminData = { topicos: [] };
+
+    const ICONS = [
+        'fa-plane','fa-cutlery','fa-bed','fa-bus','fa-calendar','fa-file-text-o',
+        'fa-users','fa-briefcase','fa-building','fa-phone','fa-envelope','fa-cog',
+        'fa-wrench','fa-desktop','fa-laptop','fa-print','fa-book','fa-graduation-cap',
+        'fa-hospital-o','fa-medkit','fa-money','fa-credit-card','fa-shopping-cart',
+        'fa-truck','fa-car','fa-map-marker','fa-globe','fa-home','fa-key',
+        'fa-shield','fa-flag','fa-bell','fa-bullhorn','fa-clipboard',
+        'fa-folder-open','fa-archive','fa-trash-o','fa-check','fa-question-circle'
+    ];
+
+    // ===================== AUTH =====================
+    async function doLogin() {
+        var username = $('#usernameInput').val().trim();
+        var password = $('#passwordInput').val();
+
+        if (!username || !password) {
+            showLoginError('Preencha usuario e senha.');
+            return;
+        }
+
+        try {
+            var res = await $.ajax({
+                url: API_BASE + '/api/login',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ username: username, password: password })
+            });
+
+            authToken = res.token;
+            currentUser = res.user;
+            sessionStorage.setItem('admin_token', authToken);
+            sessionStorage.setItem('admin_user', JSON.stringify(currentUser));
+
+            $('#loginScreen').fadeOut(300, function() { $('#adminPanel').fadeIn(300); });
+            $('#userInfo').html('<i class="fa fa-user"></i> <strong>' + esc(currentUser.nome || currentUser.username) + '</strong>');
+            loadAdminData();
+
+        } catch (err) {
+            var msg = (err.responseJSON && err.responseJSON.error) ? err.responseJSON.error : 'Erro ao conectar com o servidor.';
+            showLoginError(msg);
+        }
+    }
+
+    function showLoginError(msg) {
+        $('#loginErrorMsg').text(msg);
+        $('#loginError').show();
+        $('#passwordInput').val('').focus();
+        setTimeout(function() { $('#loginError').fadeOut(); }, 4000);
+    }
+
+    function doLogout() {
+        sessionStorage.removeItem('admin_token');
+        sessionStorage.removeItem('admin_user');
+        authToken = null;
+        currentUser = null;
+        window.location.reload();
+    }
+
+    function apiHeaders() {
+        return { 'Authorization': 'Bearer ' + authToken, 'Content-Type': 'application/json' };
+    }
+
+    // ===================== LOAD DATA =====================
+    async function loadAdminData() {
+        try {
+            adminData = await $.ajax({
+                url: API_BASE + '/api/dados',
+                headers: apiHeaders()
+            });
+            renderAdmin();
+        } catch (err) {
+            adminData = { topicos: [] };
+            renderAdmin();
+            toast('Nenhum dado encontrado. Comece adicionando topicos.', 'err');
+        }
+    }
+
+    // ===================== SAVE TO SERVER =====================
+    async function saveToServer() {
+        $('#savingOverlay').addClass('active');
+        $('#savingMsg').text('Publicando alteracoes...');
+        $('#btnSave').prop('disabled', true);
+
+        try {
+            var res = await $.ajax({
+                url: API_BASE + '/api/dados',
+                method: 'POST',
+                headers: apiHeaders(),
+                data: JSON.stringify(adminData)
+            });
+
+            toast(res.message, 'ok');
+        } catch (err) {
+            var msg = (err.responseJSON && err.responseJSON.error) ? err.responseJSON.error : 'Erro ao salvar.';
+            toast(msg, 'err');
+
+            if (err.status === 401) {
+                toast('Sessao expirada. Faca login novamente.', 'err');
+                setTimeout(doLogout, 2000);
+            }
+        } finally {
+            $('#savingOverlay').removeClass('active');
+            $('#btnSave').prop('disabled', false);
+        }
+    }
+
+    // ===================== TABS =====================
+    function switchTab(tabId, btn) {
+        $('.admin-tab').removeClass('active');
+        $(btn).addClass('active');
+        $('.tab-content').removeClass('active');
+        $('#tab-' + tabId).addClass('active');
+
+        if (tabId === 'versions') loadVersions();
+        if (tabId === 'audit') loadAudit();
+    }
+
+    // ===================== VERSIONS =====================
+    async function loadVersions() {
+        try {
+            var versions = await $.ajax({
+                url: API_BASE + '/api/versions',
+                headers: apiHeaders()
+            });
+
+            if (versions.length === 0) {
+                $('#versionsList').html('<p style="color:var(--gray);">Nenhuma versao encontrada.</p>');
+                return;
+            }
+
+            var html = '';
+            versions.forEach(function(v) {
+                var cls = v.is_current ? ' current' : '';
+                var badge = v.is_current ? '<span style="color:var(--success); font-weight:700; margin-left:8px;"><i class="fa fa-check-circle"></i> ATUAL</span>' : '';
+                var restoreBtn = v.is_current ? '' :
+                    '<button class="btn-admin btn-add-sm" onclick="restoreVersion(' + v.version + ')"><i class="fa fa-undo"></i> Restaurar</button>';
+
+                html += '<div class="version-card' + cls + '">';
+                html += '<div class="version-info">';
+                html += '<strong>Versao ' + v.version + '</strong>' + badge;
+                html += '<div class="version-meta"><i class="fa fa-user"></i> ' + esc(v.created_by) + ' &bull; <i class="fa fa-clock-o"></i> ' + formatDate(v.created_at) + '</div>';
+                html += '</div>';
+                html += restoreBtn;
+                html += '</div>';
+            });
+
+            $('#versionsList').html(html);
+        } catch (err) {
+            $('#versionsList').html('<p style="color:var(--danger);">Erro ao carregar versoes.</p>');
+        }
+    }
+
+    async function restoreVersion(versionId) {
+        if (!confirm('Restaurar a versao ' + versionId + '? Isso criara uma nova versao com os dados antigos.')) return;
+
+        $('#savingOverlay').addClass('active');
+        $('#savingMsg').text('Restaurando versao...');
+
+        try {
+            var res = await $.ajax({
+                url: API_BASE + '/api/versions/' + versionId + '/restore',
+                method: 'POST',
+                headers: apiHeaders()
+            });
+
+            toast(res.message, 'ok');
+            loadAdminData();
+            loadVersions();
+        } catch (err) {
+            toast('Erro ao restaurar versao.', 'err');
+        } finally {
+            $('#savingOverlay').removeClass('active');
+        }
+    }
+
+    // ===================== AUDIT =====================
+    async function loadAudit() {
+        try {
+            var res = await $.ajax({
+                url: API_BASE + '/api/audit',
+                headers: apiHeaders()
+            });
+
+            if (res.logs.length === 0) {
+                $('#auditBody').html('<tr><td colspan="5" style="text-align:center; color:var(--gray);">Nenhum registro encontrado.</td></tr>');
+                return;
+            }
+
+            var html = '';
+            res.logs.forEach(function(log) {
+                html += '<tr>';
+                html += '<td style="white-space:nowrap;">' + formatDate(log.created_at) + '</td>';
+                html += '<td><span class="action-badge ' + log.action + '">' + esc(log.action) + '</span></td>';
+                html += '<td>' + esc(log.username) + '</td>';
+                html += '<td>' + esc(log.detail || '-') + '</td>';
+                html += '<td style="font-size:11px; color:var(--gray);">' + esc(log.ip_address || '-') + '</td>';
+                html += '</tr>';
+            });
+
+            $('#auditBody').html(html);
+        } catch (err) {
+            $('#auditBody').html('<tr><td colspan="5" style="text-align:center; color:var(--danger);">Erro ao carregar auditoria.</td></tr>');
+        }
+    }
+
+    // ===================== RENDER EDITOR =====================
+    function renderAdmin() {
+        var html = '';
+
+        adminData.topicos.forEach(function(topico, tI) {
+            html += '<div class="topic-card">';
+            html += '<div class="topic-card-header">';
+            html += '<div class="topic-info">';
+            html += '<div><label>ID (sem espacos)</label><input type="text" value="' + esc(topico.id) + '" onchange="adminData.topicos[' + tI + '].id=this.value" style="width:140px;" placeholder="ex: passagens"></div>';
+            html += '<div><label>Nome do Topico</label><input type="text" value="' + esc(topico.nome) + '" onchange="adminData.topicos[' + tI + '].nome=this.value" style="width:220px;" placeholder="Nome exibido"></div>';
+            html += '<div><label>Icone</label><div class="icon-options">';
+            ICONS.forEach(function(ic) {
+                var sel = (topico.icone === ic) ? ' selected' : '';
+                html += '<span class="icon-option' + sel + '" onclick="selIcon(' + tI + ',\'' + ic + '\',this)" title="' + ic + '"><i class="fa ' + ic + '"></i></span>';
+            });
+            html += '</div></div>';
+            html += '</div>';
+            html += '<button class="btn-admin btn-remove" onclick="removeTopic(' + tI + ')"><i class="fa fa-trash"></i> Remover</button>';
+            html += '</div>';
+
+            html += '<div class="topic-card-body">';
+            (topico.categorias || []).forEach(function(cat, cI) {
+                html += '<div class="category-block">';
+                html += '<div class="category-block-header">';
+                html += '<input type="text" value="' + esc(cat.nome) + '" onchange="adminData.topicos[' + tI + '].categorias[' + cI + '].nome=this.value" placeholder="Nome da categoria">';
+                html += '<button class="btn-admin btn-remove" onclick="removeCat(' + tI + ',' + cI + ')"><i class="fa fa-trash"></i></button>';
+                html += '</div>';
+                html += '<div class="category-block-body">';
+
+                (cat.perguntas || []).forEach(function(qa, qI) {
+                    html += '<div class="qa-item">';
+                    html += '<div class="qa-item-actions"><button class="btn-admin btn-remove" onclick="removeQ(' + tI + ',' + cI + ',' + qI + ')"><i class="fa fa-trash"></i></button></div>';
+                    html += '<label><i class="fa fa-question-circle" style="color:var(--primary);"></i> Pergunta</label>';
+                    html += '<input type="text" value="' + esc(qa.pergunta) + '" onchange="adminData.topicos[' + tI + '].categorias[' + cI + '].perguntas[' + qI + '].pergunta=this.value" placeholder="Digite a pergunta">';
+                    html += '<label><i class="fa fa-comment" style="color:var(--success);"></i> Resposta</label>';
+                    html += '<textarea onchange="adminData.topicos[' + tI + '].categorias[' + cI + '].perguntas[' + qI + '].resposta=this.value" placeholder="Digite a resposta">' + esc(qa.resposta) + '</textarea>';
+                    html += '</div>';
+                });
+
+                html += '<button class="btn-admin btn-add-sm" onclick="addQ(' + tI + ',' + cI + ')" style="margin-top:10px;"><i class="fa fa-plus"></i> Nova Pergunta</button>';
+                html += '</div></div>';
+            });
+
+            html += '<button class="btn-admin btn-add-sm" onclick="addCat(' + tI + ')" style="margin-top:10px;"><i class="fa fa-plus"></i> Nova Categoria</button>';
+            html += '</div></div>';
+        });
+
+        if (adminData.topicos.length === 0) {
+            html = '<div style="text-align:center; padding:60px; background:#fff; border-radius:8px; border:1px solid var(--border);">' +
+                '<i class="fa fa-inbox fa-3x" style="color:var(--border); margin-bottom:15px; display:block;"></i>' +
+                '<p style="color:var(--gray);">Nenhum topico cadastrado.</p>' +
+                '<button class="btn-admin btn-add" onclick="addTopic()"><i class="fa fa-plus"></i> Criar Primeiro Topico</button>' +
+                '</div>';
+        }
+
+        $('#topicList').html(html);
+    }
+
+    // ===================== CRUD =====================
+    function addTopic() {
+        adminData.topicos.push({
+            id: 'topico_' + Date.now(), nome: 'Novo Topico', icone: 'fa-file-text-o',
+            categorias: [{ nome: 'Geral', perguntas: [{ pergunta: 'Nova pergunta', resposta: 'Resposta aqui...' }] }]
+        });
+        renderAdmin(); toast('Topico adicionado!', 'ok');
+        setTimeout(function() { $('html, body').animate({ scrollTop: $('.topic-card').last().offset().top - 80 }, 400); }, 100);
+    }
+
+    function removeTopic(i) {
+        if (confirm('Remover topico "' + adminData.topicos[i].nome + '" e todo seu conteudo?')) {
+            adminData.topicos.splice(i, 1); renderAdmin(); toast('Topico removido.', 'ok');
+        }
+    }
+
+    function selIcon(tI, icon, el) {
+        adminData.topicos[tI].icone = icon;
+        $(el).closest('.icon-options').find('.icon-option').removeClass('selected');
+        $(el).addClass('selected');
+    }
+
+    function addCat(tI) {
+        adminData.topicos[tI].categorias.push({ nome: 'Nova Categoria', perguntas: [{ pergunta: 'Nova pergunta', resposta: 'Resposta aqui...' }] });
+        renderAdmin(); toast('Categoria adicionada!', 'ok');
+    }
+
+    function removeCat(tI, cI) {
+        if (confirm('Remover esta categoria?')) { adminData.topicos[tI].categorias.splice(cI, 1); renderAdmin(); }
+    }
+
+    function addQ(tI, cI) {
+        adminData.topicos[tI].categorias[cI].perguntas.push({ pergunta: 'Nova pergunta', resposta: 'Resposta aqui...' });
+        renderAdmin(); toast('Pergunta adicionada!', 'ok');
+    }
+
+    function removeQ(tI, cI, qI) {
+        if (confirm('Remover esta pergunta?')) { adminData.topicos[tI].categorias[cI].perguntas.splice(qI, 1); renderAdmin(); }
+    }
+
+    // ===================== IMPORT/EXPORT =====================
+    function exportJSON() {
+        var d = new Date().toISOString().slice(0, 10);
+        download(JSON.stringify(adminData, null, 2), 'backup_portal_' + d + '.json');
+        toast('Backup exportado!', 'ok');
+    }
+
+    function importJSON(e) {
+        var file = e.target.files[0]; if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+            try {
+                var data = JSON.parse(ev.target.result);
+                if (!data.topicos) { toast('Arquivo invalido.', 'err'); return; }
+                adminData = data; renderAdmin();
+                toast('Importado! ' + data.topicos.length + ' topicos. Clique "Publicar" para salvar.', 'ok');
+            } catch (err) { toast('Erro ao ler JSON: ' + err.message, 'err'); }
+        };
+        reader.readAsText(file); e.target.value = '';
+    }
+
+    function download(content, filename) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
+        a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    // ===================== UTILS =====================
+    function toast(msg, type) {
+        var el = type === 'err' ? $('#toastErr') : $('#toastOk');
+        el.text(msg).fadeIn(300); setTimeout(function() { el.fadeOut(300); }, 5000);
+    }
+
+    function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+
+    function formatDate(iso) {
+        if (!iso) return '-';
+        var d = new Date(iso);
+        return d.toLocaleString('pt-BR');
+    }
+
+    // ===================== INIT =====================
+    $(document).ready(function() {
+        authToken = sessionStorage.getItem('admin_token');
+        var userStr = sessionStorage.getItem('admin_user');
+        if (userStr) {
+            try { currentUser = JSON.parse(userStr); } catch(e) {}
+        }
+
+        if (authToken && currentUser) {
+            // Validar token tentando carregar dados
+            $.ajax({
+                url: API_BASE + '/api/dados',
+                headers: { 'Authorization': 'Bearer ' + authToken }
+            }).done(function(data) {
+                adminData = data;
+                $('#loginScreen').hide();
+                $('#adminPanel').show();
+                $('#userInfo').html('<i class="fa fa-user"></i> <strong>' + esc(currentUser.nome || currentUser.username) + '</strong>');
+                renderAdmin();
+            }).fail(function() {
+                sessionStorage.removeItem('admin_token');
+                sessionStorage.removeItem('admin_user');
+                authToken = null; currentUser = null;
+            });
+        }
+
+        $('#usernameInput').focus();
+    });
+    </script>
+</body>
+</html>
