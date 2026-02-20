@@ -122,6 +122,9 @@
         .admin-tab:hover { color: var(--primary); }
         .admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
 
+        /* Abas restritas a admins: ocultas por padrao, JS exibe apos verificar role */
+        .admin-only { display: none; }
+
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
@@ -233,6 +236,42 @@
         .action-badge.create_user { background: #2c3e50; }
         .action-badge.update_user { background: #2980b9; }
 
+        /* ===== USERS TABLE ===== */
+        .users-table { width: 100%; border-collapse: collapse; }
+        .users-table th { background: var(--light-gray); padding: 10px 12px; text-align: left; font-size: 12px; color: var(--gray); border-bottom: 2px solid var(--border); }
+        .users-table td { padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 13px; vertical-align: middle; }
+        .users-table tr:hover { background: #f8f8f8; }
+
+        .status-badge {
+            display: inline-block; padding: 2px 10px; border-radius: 10px;
+            font-size: 11px; font-weight: 700; color: #fff;
+        }
+        .status-badge.ativo { background: var(--success); }
+        .status-badge.inativo { background: var(--gray); }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.45); display: none;
+            align-items: center; justify-content: center; z-index: 9998;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: #fff; border-radius: 8px; padding: 35px;
+            width: 100%; max-width: 460px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+        }
+        .modal-box h4 { color: var(--primary); margin: 0 0 20px; }
+        .modal-box .form-group { margin-bottom: 15px; }
+        .modal-box label { font-size: 12px; color: var(--gray); font-weight: 600; display: block; margin-bottom: 4px; }
+        .modal-box input {
+            width: 100%; padding: 10px 14px; border: 2px solid var(--border);
+            border-radius: 6px; font-size: 14px; font-family: "Montserrat", sans-serif;
+        }
+        .modal-box input:focus { outline: none; border-color: var(--primary); }
+        .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .btn-cancel { background: #6c757d; color: #fff; }
+
         /* ===== VERSION CARD ===== */
         .version-card {
             background: #fff; border: 1px solid var(--border); border-radius: 6px;
@@ -332,7 +371,8 @@
                 <div class="admin-tabs">
                     <button class="admin-tab active" onclick="switchTab('editor', this)"><i class="fa fa-pencil"></i> Editor</button>
                     <button class="admin-tab" onclick="switchTab('versions', this)"><i class="fa fa-history"></i> Versoes</button>
-                    <button class="admin-tab" onclick="switchTab('audit', this)"><i class="fa fa-list-alt"></i> Auditoria</button>
+                    <button class="admin-tab admin-only" onclick="switchTab('audit', this)"><i class="fa fa-list-alt"></i> Auditoria</button>
+                    <button class="admin-tab admin-only" onclick="switchTab('users', this)"><i class="fa fa-users"></i> Usuarios</button>
                 </div>
 
                 <!-- TAB: EDITOR -->
@@ -350,6 +390,35 @@
                     <p style="color: var(--gray); margin-bottom: 20px;">Cada vez que voce publica alteracoes, uma nova versao e criada. Voce pode restaurar qualquer versao anterior.</p>
                     <div id="versionsList">
                         <p style="color: var(--gray);"><i class="fa fa-spinner fa-spin"></i> Carregando...</p>
+                    </div>
+                </div>
+
+                <!-- TAB: USUARIOS -->
+                <div class="tab-content" id="tab-users">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <h4 style="margin: 0;"><i class="fa fa-users"></i> Gerenciar Usuarios</h4>
+                            <p style="color: var(--gray); margin: 5px 0 0; font-size: 13px;">Todos os usuarios tem acesso total ao painel admin.</p>
+                        </div>
+                        <button class="btn-admin btn-add" onclick="openUserModal()"><i class="fa fa-plus"></i> Novo Usuario</button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="users-table" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Username</th>
+                                    <th>Nome</th>
+                                    <th>Perfil</th>
+                                    <th>Status</th>
+                                    <th>Criado em</th>
+                                    <th>Acoes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersBody">
+                                <tr><td colspan="6" style="text-align:center; color:var(--gray);"><i class="fa fa-spinner fa-spin"></i> Carregando...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -387,6 +456,42 @@
         </div>
     </div>
 
+    <!-- MODAL: CRIAR/EDITAR USUARIO -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal-box">
+            <h4 id="userModalTitle"><i class="fa fa-user-plus"></i> Novo Usuario</h4>
+            <input type="hidden" id="editUserId">
+            <div class="form-group">
+                <label>Username (login)</label>
+                <input type="text" id="inputUsername" placeholder="ex: joao.silva" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Nome completo</label>
+                <input type="text" id="inputNome" placeholder="ex: Joao da Silva" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Perfil de acesso</label>
+                <select id="inputRole" style="width:100%; padding:10px 14px; border:2px solid var(--border); border-radius:6px; font-size:14px; font-family:'Montserrat',sans-serif; background:#fff;">
+                    <option value="editor">Editor &mdash; pode editar e publicar conteudo</option>
+                    <option value="admin">Administrador &mdash; acesso total (auditoria e usuarios)</option>
+                </select>
+            </div>
+            <div class="form-group" id="passwordGroup">
+                <label>Senha</label>
+                <input type="password" id="inputPassword" placeholder="Minimo 6 caracteres" autocomplete="new-password">
+            </div>
+            <div class="form-group" id="passwordChangeGroup" style="display:none;">
+                <label>Nova Senha <span style="font-weight:400; color:var(--gray);">(deixe vazio para nao alterar)</span></label>
+                <input type="password" id="inputPasswordChange" placeholder="Nova senha" autocomplete="new-password">
+            </div>
+            <p id="userModalError" style="color:var(--danger); font-size:13px; display:none;"></p>
+            <div class="modal-footer">
+                <button class="btn-admin btn-cancel" onclick="closeUserModal()"><i class="fa fa-times"></i> Cancelar</button>
+                <button class="btn-admin btn-save" id="btnSaveUser" onclick="saveUser()"><i class="fa fa-check"></i> Salvar</button>
+            </div>
+        </div>
+    </div>
+
     <input type="file" id="importInput" class="hidden-input" accept=".json" onchange="importJSON(event)">
     <div class="toast-msg toast-ok" id="toastOk"></div>
     <div class="toast-msg toast-err" id="toastErr"></div>
@@ -413,6 +518,16 @@
         'fa-folder-open','fa-archive','fa-trash-o','fa-check','fa-question-circle'
     ];
 
+    // ===================== ROLE VISIBILITY =====================
+    function applyRoleVisibility() {
+        var isAdmin = currentUser && currentUser.role === 'admin';
+        if (isAdmin) {
+            $('.admin-only').show();
+        } else {
+            $('.admin-only').hide();
+        }
+    }
+
     // ===================== AUTH =====================
     async function doLogin() {
         var username = $('#usernameInput').val().trim();
@@ -438,6 +553,7 @@
 
             $('#loginScreen').fadeOut(300, function() { $('#adminPanel').fadeIn(300); });
             $('#userInfo').html('<i class="fa fa-user"></i> <strong>' + esc(currentUser.nome || currentUser.username) + '</strong>');
+            applyRoleVisibility();
             loadAdminData();
 
         } catch (err) {
@@ -518,6 +634,7 @@
 
         if (tabId === 'versions') loadVersions();
         if (tabId === 'audit') loadAudit();
+        if (tabId === 'users') loadUsers();
     }
 
     // ===================== VERSIONS =====================
@@ -747,6 +864,168 @@
         return d.toLocaleString('pt-BR');
     }
 
+    // ===================== USERS =====================
+    async function loadUsers() {
+        try {
+            var users = await $.ajax({
+                url: API_BASE + '/api/users',
+                headers: apiHeaders()
+            });
+
+            if (users.length === 0) {
+                $('#usersBody').html('<tr><td colspan="6" style="text-align:center; color:var(--gray);">Nenhum usuario encontrado.</td></tr>');
+                return;
+            }
+
+            var html = '';
+            users.forEach(function(u) {
+                var statusBadge = u.ativo
+                    ? '<span class="status-badge ativo"><i class="fa fa-check"></i> Ativo</span>'
+                    : '<span class="status-badge inativo"><i class="fa fa-ban"></i> Inativo</span>';
+
+                var toggleLabel = u.ativo ? 'Desativar' : 'Ativar';
+                var toggleIcon = u.ativo ? 'fa-ban' : 'fa-check';
+                var toggleStyle = u.ativo ? 'background:#e67e22;' : 'background:var(--success);';
+
+                html += '<tr>';
+                html += '<td style="color:var(--gray);">#' + u.id + '</td>';
+                html += '<td><strong>' + esc(u.username) + '</strong></td>';
+                html += '<td>' + esc(u.nome || '-') + '</td>';
+                html += '<td>' + statusBadge + '</td>';
+                html += '<td style="font-size:11px; color:var(--gray);">' + formatDate(u.created_at) + '</td>';
+                html += '<td style="white-space:nowrap;">';
+                html += '<button class="btn-admin btn-add-sm" style="margin-right:5px;" onclick="openUserModal(' + u.id + ',\'' + esc(u.username) + '\',\'' + esc(u.nome || '') + '\')"><i class="fa fa-pencil"></i> Editar</button>';
+                html += '<button class="btn-admin btn-add-sm" style="' + toggleStyle + '" onclick="toggleUser(' + u.id + ',' + u.ativo + ')"><i class="fa ' + toggleIcon + '"></i> ' + toggleLabel + '</button>';
+                html += '</td>';
+                html += '</tr>';
+            });
+
+            $('#usersBody').html(html);
+        } catch (err) {
+            $('#usersBody').html('<tr><td colspan="6" style="text-align:center; color:var(--danger);">Erro ao carregar usuarios.</td></tr>');
+        }
+    }
+
+    function openUserModal(id, username, nome, role) {
+        $('#userModalError').hide();
+        $('#editUserId').val(id || '');
+
+        if (id) {
+            // modo edicao
+            $('#userModalTitle').html('<i class="fa fa-pencil"></i> Editar Usuario');
+            $('#inputUsername').val(username).prop('disabled', true);
+            $('#inputNome').val(nome);
+            $('#inputRole').val(role || 'editor');
+            $('#passwordGroup').hide();
+            $('#passwordChangeGroup').show();
+            $('#inputPasswordChange').val('');
+        } else {
+            // modo criacao
+            $('#userModalTitle').html('<i class="fa fa-user-plus"></i> Novo Usuario');
+            $('#inputUsername').val('').prop('disabled', false);
+            $('#inputNome').val('');
+            $('#inputRole').val('editor');
+            $('#passwordGroup').show();
+            $('#passwordChangeGroup').hide();
+            $('#inputPassword').val('');
+        }
+
+        $('#userModal').addClass('active');
+        setTimeout(function() {
+            if (!id) $('#inputUsername').focus();
+            else $('#inputNome').focus();
+        }, 100);
+    }
+
+    function closeUserModal() {
+        $('#userModal').removeClass('active');
+    }
+
+    async function saveUser() {
+        $('#userModalError').hide();
+        var id = $('#editUserId').val();
+
+        if (id) {
+            // Atualizar
+            var body = {
+                nome: $('#inputNome').val().trim(),
+                role: $('#inputRole').val()
+            };
+            var newPass = $('#inputPasswordChange').val();
+            if (newPass) {
+                if (newPass.length < 6) { showUserModalError('A senha deve ter pelo menos 6 caracteres.'); return; }
+                body.password = newPass;
+            }
+
+            try {
+                $('#btnSaveUser').prop('disabled', true);
+                await $.ajax({
+                    url: API_BASE + '/api/users/' + id,
+                    method: 'PUT',
+                    headers: apiHeaders(),
+                    data: JSON.stringify(body)
+                });
+                closeUserModal();
+                toast('Usuario atualizado com sucesso!', 'ok');
+                loadUsers();
+            } catch (err) {
+                var msg = (err.responseJSON && err.responseJSON.error) ? err.responseJSON.error : 'Erro ao atualizar usuario.';
+                showUserModalError(msg);
+            } finally {
+                $('#btnSaveUser').prop('disabled', false);
+            }
+        } else {
+            // Criar
+            var username = $('#inputUsername').val().trim();
+            var nome = $('#inputNome').val().trim();
+            var password = $('#inputPassword').val();
+
+            if (!username) { showUserModalError('Username e obrigatorio.'); return; }
+            if (!password) { showUserModalError('Senha e obrigatoria.'); return; }
+            if (password.length < 6) { showUserModalError('A senha deve ter pelo menos 6 caracteres.'); return; }
+
+            try {
+                $('#btnSaveUser').prop('disabled', true);
+                await $.ajax({
+                    url: API_BASE + '/api/users',
+                    method: 'POST',
+                    headers: apiHeaders(),
+                    data: JSON.stringify({ username: username, nome: nome, password: password, role: $('#inputRole').val() })
+                });
+                closeUserModal();
+                toast('Usuario criado com sucesso!', 'ok');
+                loadUsers();
+            } catch (err) {
+                var msg = (err.responseJSON && err.responseJSON.error) ? err.responseJSON.error : 'Erro ao criar usuario.';
+                showUserModalError(msg);
+            } finally {
+                $('#btnSaveUser').prop('disabled', false);
+            }
+        }
+    }
+
+    async function toggleUser(id, currentStatus) {
+        var action = currentStatus ? 'desativar' : 'ativar';
+        if (!confirm('Deseja ' + action + ' este usuario?')) return;
+
+        try {
+            await $.ajax({
+                url: API_BASE + '/api/users/' + id,
+                method: 'PUT',
+                headers: apiHeaders(),
+                data: JSON.stringify({ ativo: !currentStatus })
+            });
+            toast('Usuario ' + action.replace('r','do') + ' com sucesso!', 'ok');
+            loadUsers();
+        } catch (err) {
+            toast('Erro ao ' + action + ' usuario.', 'err');
+        }
+    }
+
+    function showUserModalError(msg) {
+        $('#userModalError').text(msg).show();
+    }
+
     // ===================== INIT =====================
     $(document).ready(function() {
         authToken = sessionStorage.getItem('admin_token');
@@ -756,16 +1035,30 @@
         }
 
         if (authToken && currentUser) {
-            // Validar token tentando carregar dados
+            // Sempre busca dados frescos do usuário para garantir role atualizado
             $.ajax({
-                url: API_BASE + '/api/dados',
+                url: API_BASE + '/api/me',
                 headers: { 'Authorization': 'Bearer ' + authToken }
-            }).done(function(data) {
-                adminData = data;
-                $('#loginScreen').hide();
-                $('#adminPanel').show();
-                $('#userInfo').html('<i class="fa fa-user"></i> <strong>' + esc(currentUser.nome || currentUser.username) + '</strong>');
-                renderAdmin();
+            }).done(function(freshUser) {
+                currentUser = freshUser;
+                sessionStorage.setItem('admin_user', JSON.stringify(currentUser));
+
+                // Valida e carrega dados do portal
+                $.ajax({
+                    url: API_BASE + '/api/dados',
+                    headers: { 'Authorization': 'Bearer ' + authToken }
+                }).done(function(data) {
+                    adminData = data;
+                    $('#loginScreen').hide();
+                    $('#adminPanel').show();
+                    $('#userInfo').html('<i class="fa fa-user"></i> <strong>' + esc(currentUser.nome || currentUser.username) + '</strong>');
+                    applyRoleVisibility();
+                    renderAdmin();
+                }).fail(function() {
+                    sessionStorage.removeItem('admin_token');
+                    sessionStorage.removeItem('admin_user');
+                    authToken = null; currentUser = null;
+                });
             }).fail(function() {
                 sessionStorage.removeItem('admin_token');
                 sessionStorage.removeItem('admin_user');

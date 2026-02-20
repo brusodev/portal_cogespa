@@ -58,6 +58,19 @@ def get_next_version():
     return (last.version + 1) if last else 1
 
 
+def admin_required(fn):
+    """Decorator que exige role='admin' além do JWT válido."""
+    @wraps(fn)
+    @jwt_required()
+    def wrapper(*args, **kwargs):
+        username = get_jwt_identity()
+        user = User.query.filter_by(username=username, ativo=True).first()
+        if not user or user.role != 'admin':
+            return jsonify({"error": "Acesso negado. Apenas administradores."}), 403
+        return fn(*args, **kwargs)
+    return wrapper
+
+
 # Dados iniciais padrão
 DEFAULT_DATA = {
     "topicos": [
@@ -339,7 +352,7 @@ def restore_version(version_id):
 
 
 @app.route('/api/audit', methods=['GET'])
-@jwt_required()
+@admin_required
 def get_audit():
     """Retorna o log de auditoria."""
     page = request.args.get('page', 1, type=int)
@@ -360,18 +373,29 @@ def get_audit():
 # GESTÃO DE USUÁRIOS
 # ================================================================
 
-@app.route('/api/users', methods=['GET'])
+@app.route('/api/me', methods=['GET'])
 @jwt_required()
+def get_me():
+    """Retorna os dados do usuário autenticado."""
+    username = get_jwt_identity()
+    user = User.query.filter_by(username=username, ativo=True).first()
+    if not user:
+        return jsonify({"error": "Usuário não encontrado."}), 404
+    return jsonify(user.to_dict())
+
+
+@app.route('/api/users', methods=['GET'])
+@admin_required
 def list_users():
-    """Lista todos os usuários."""
+    """Lista todos os usuários. Somente admins."""
     users = User.query.all()
     return jsonify([u.to_dict() for u in users])
 
 
 @app.route('/api/users', methods=['POST'])
-@jwt_required()
+@admin_required
 def create_user():
-    """Cria um novo usuário admin."""
+    """Cria um novo usuário. Somente admins."""
     body = request.get_json(silent=True)
 
     if not body or not body.get('username') or not body.get('password'):
@@ -380,36 +404,45 @@ def create_user():
     if User.query.filter_by(username=body['username']).first():
         return jsonify({"error": "Usuário já existe."}), 409
 
+    role = body.get('role', 'editor')
+    if role not in ('admin', 'editor'):
+        return jsonify({"error": "Role inválido. Use 'admin' ou 'editor'."}), 400
+
     user = User(
         username=body['username'],
         nome=body.get('nome', ''),
+        role=role,
         ativo=True,
     )
     user.set_password(body['password'])
     db.session.add(user)
     db.session.commit()
 
-    log_action('create_user', get_jwt_identity(), f'Criou usuário: {user.username}')
+    log_action('create_user', get_jwt_identity(), f'Criou usuário: {user.username} (role: {role})')
 
     return jsonify({"success": True, "user": user.to_dict()}), 201
 
 
 @app.route('/api/users/<int:user_id>', methods=['PUT'])
-@jwt_required()
+@admin_required
 def update_user(user_id):
-    """Atualiza um usuário (nome, senha, status)."""
+    """Atualiza um usuário (nome, senha, status, role). Somente admins."""
     body = request.get_json(silent=True)
     user = User.query.get(user_id)
 
     if not user:
         return jsonify({"error": "Usuário não encontrado."}), 404
 
-    if body.get('nome'):
+    if body.get('nome') is not None:
         user.nome = body['nome']
     if body.get('password'):
         user.set_password(body['password'])
     if 'ativo' in body:
         user.ativo = body['ativo']
+    if 'role' in body:
+        if body['role'] not in ('admin', 'editor'):
+            return jsonify({"error": "Role inválido. Use 'admin' ou 'editor'."}), 400
+        user.role = body['role']
 
     db.session.commit()
 
@@ -432,6 +465,7 @@ def seed():
     admin = User(
         username=Config.DEFAULT_ADMIN_USER,
         nome='Administrador',
+        role='admin',
         ativo=True,
     )
     admin.set_password(Config.DEFAULT_ADMIN_PASSWORD)
@@ -471,6 +505,18 @@ def seed():
 
 with app.app_context():
     db.create_all()
+
+    # Migração: adiciona coluna 'role' se não existir (bancos criados antes desta versão)
+    try:
+        with db.engine.connect() as conn:
+            cols = [row[1] for row in conn.execute(db.text("PRAGMA table_info(users)")).fetchall()]
+            if 'role' not in cols:
+                conn.execute(db.text("ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'editor'"))
+                # Garante que o usuário 'admin' padrão fica com role=admin
+                conn.execute(db.text("UPDATE users SET role = 'admin' WHERE username = :u"), {"u": Config.DEFAULT_ADMIN_USER})
+                conn.commit()
+    except Exception as e:
+        app.logger.warning(f'Migração role: {e}')
 
 
 if __name__ == '__main__':
